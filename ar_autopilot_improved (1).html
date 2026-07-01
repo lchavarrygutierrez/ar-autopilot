@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AR Autopilot — Amigo Operations Prototype</title>
+<style>
+:root{
+  --paper:#EFEDE3;
+  --paper-card:#FBFAF5;
+  --ink:#1E2A28;
+  --ink-soft:#5B6864;
+  --line:#CDC6B2;
+  --amber:#C9762B;
+  --amber-soft:#EBD3B4;
+  --teal:#2F6F62;
+  --teal-soft:#D6E5DF;
+  --red:#A93B2E;
+  --red-soft:#EBCFC7;
+  --blue:#385E7D;
+  --blue-soft:#D9E3EA;
+  --shadow:0 18px 45px rgba(30,42,40,.08);
+  font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--paper);color:var(--ink);}
+button, textarea, input{font:inherit;}
+.mono{font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;}
+.wrap{max-width:1200px;margin:0 auto;padding:28px 24px 64px;}
+
+/* header */
+.header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:22px;gap:18px;}
+.eyebrow{font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin:0 0 6px;}
+.h1{font-size:32px;font-weight:700;margin:0;letter-spacing:-.025em;}
+.sub{color:var(--ink-soft);font-size:13px;margin-top:7px;max-width:650px;line-height:1.55;}
+.date{font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;font-size:12px;color:var(--ink-soft);text-align:right;}
+.header-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.runbtn,.ghostbtn,.actionbtn{border-radius:4px;cursor:pointer;transition:transform .15s ease, background .15s ease, color .15s ease;}
+.runbtn{background:var(--ink);color:var(--paper-card);border:none;padding:10px 18px;font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;font-size:12px;letter-spacing:.04em;}
+.runbtn:hover{background:var(--amber);}
+.ghostbtn{background:transparent;color:var(--ink);border:1px solid var(--line);padding:10px 14px;font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;font-size:12px;}
+.ghostbtn:hover,.actionbtn:hover{background:var(--ink);color:var(--paper-card);border-color:var(--ink);}
+.runbtn:active,.ghostbtn:active,.actionbtn:active{transform:scale(.97);}
+.runbtn:disabled,.actionbtn:disabled{opacity:.45;cursor:default;}
+
+/* proof strip */
+.proof{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:12px;margin-bottom:20px;}
+.proof-card{background:var(--paper-card);border:1px solid var(--line);border-radius:6px;padding:14px 16px;box-shadow:var(--shadow);}
+.proof-title{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-soft);margin-bottom:6px;}
+.proof-card p{font-size:12.5px;line-height:1.5;margin:0;color:var(--ink-soft);}
+.proof-card b{color:var(--ink);}
+
+/* pipeline */
+.pipeline{display:flex;align-items:center;margin:0 0 22px;background:var(--paper-card);border:1px solid var(--line);border-radius:6px;padding:18px 22px;overflow-x:auto;box-shadow:var(--shadow);}
+.step{display:flex;flex-direction:column;align-items:center;min-width:118px;position:relative;}
+.step-count{font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;font-size:22px;font-weight:600;transition:color .3s ease;}
+.step-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin-top:4px;text-align:center;}
+.step.active .step-count{color:var(--amber);}
+.connector{flex:1;height:1px;background:var(--line);position:relative;margin:0 4px 20px;min-width:22px;}
+.connector .fill{position:absolute;left:0;top:0;height:100%;background:var(--teal);width:0%;transition:width .5s ease;}
+
+/* summary */
+.summary{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:22px;}
+.card{background:var(--paper-card);border:1px solid var(--line);border-radius:6px;padding:16px 18px;box-shadow:var(--shadow);}
+.card-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);}
+.card-value{font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;font-size:25px;font-weight:600;margin-top:6px;}
+.small{font-size:10.5px;color:var(--ink-soft);}
+.agingbar{display:flex;height:14px;border-radius:3px;overflow:hidden;margin-top:14px;border:1px solid var(--line);background:#fff;}
+.agingbar div{height:100%;}
+.aginglegend{display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;}
+.aginglegend span{font-size:10.2px;font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;color:var(--ink-soft);display:flex;align-items:center;gap:5px;}
+.dot{width:8px;height:8px;border-radius:2px;display:inline-block;}
+
+/* table */
+.section-title{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-soft);margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.tablecard{background:var(--paper-card);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:22px;box-shadow:var(--shadow);}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{text-align:left;font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);border-bottom:1px solid var(--line);padding:10px 12px;background:#F4F2E9;white-space:nowrap;}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr.paid{opacity:.48;}
+tr.paid td{text-decoration:line-through;}
+.tag{font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;font-size:10px;padding:3px 7px;border-radius:3px;letter-spacing:.03em;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;}
+.tag.current{background:var(--teal-soft);color:var(--teal);}
+.tag.b1{background:#F1E4CE;color:#8A5A20;}
+.tag.b2{background:var(--amber-soft);color:var(--amber);}
+.tag.b3{background:#EAD0B9;color:#95491B;}
+.tag.b4{background:var(--red-soft);color:var(--red);}
+.tag.high{background:var(--red-soft);color:var(--red);}
+.tag.med{background:var(--amber-soft);color:var(--amber);}
+.tag.low{background:var(--teal-soft);color:var(--teal);}
+.actionbtn{font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;font-size:11px;background:none;border:1px solid var(--ink);color:var(--ink);padding:5px 10px;}
+.actions{display:flex;gap:6px;align-items:center;justify-content:flex-end;}
+.sentbadge{font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;font-size:10.5px;color:var(--teal);white-space:nowrap;}
+
+/* grid panels */
+.lower{display:grid;grid-template-columns:1.12fr .88fr;gap:18px;align-items:start;}
+.panel{background:var(--paper-card);border:1px solid var(--line);border-radius:6px;padding:16px;box-shadow:var(--shadow);}
+
+/* drafts */
+.draft{border:1px solid var(--line);border-radius:6px;background:#fff;padding:14px 16px;margin-bottom:12px;}
+.draft:last-child{margin-bottom:0;}
+.draft-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;gap:12px;}
+.draft-head b{font-size:13px;}
+.draft textarea{width:100%;min-height:112px;font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;font-size:11.5px;line-height:1.5;border:1px solid var(--line);border-radius:4px;padding:10px;background:#fff;resize:vertical;color:var(--ink);}
+.draft-foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:10px;}
+.empty{color:var(--ink-soft);font-size:12px;line-height:1.55;margin:0;}
+
+/* reconciliation */
+textarea.paste{width:100%;min-height:148px;font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;font-size:12px;border:1px solid var(--line);border-radius:5px;padding:10px;background:#fff;color:var(--ink);line-height:1.55;}
+.log{font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;font-size:11.2px;line-height:1.75;max-height:190px;overflow-y:auto;border:1px solid var(--line);background:#fff;border-radius:5px;padding:10px;}
+.log .ok{color:var(--teal);}
+.log .miss{color:var(--red);}
+.log .info{color:var(--blue);}
+.log .warn{color:var(--amber);}
+.audit{max-height:220px;overflow:auto;font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;font-size:11.2px;line-height:1.8;border:1px solid var(--line);background:#fff;border-radius:5px;padding:10px;}
+.audit div{border-bottom:1px dashed #e2ddcf;padding:3px 0;}
+.audit div:last-child{border-bottom:none;}
+
+.note{font-size:11.2px;line-height:1.55;color:var(--ink-soft);border-left:3px solid var(--amber);padding:8px 10px;background:#F7F1E7;margin:12px 0 0;}
+.footer-note{font-size:11px;line-height:1.55;color:var(--ink-soft);margin-top:18px;}
+
+@media (max-width:900px){
+  .header{display:block;}
+  .date{text-align:left;margin-top:14px;}
+  .header-actions{justify-content:flex-start;}
+  .proof,.summary,.lower{grid-template-columns:1fr;}
+  table{min-width:900px;}
+  .tablecard{overflow-x:auto;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div>
+      <p class="eyebrow">Accounts Receivable — Fast Track Prototype</p>
+      <h1 class="h1">AR Autopilot</h1>
+      <p class="sub">A self-contained demo that turns a manual AR workflow into an operating system: age invoices, prioritize follow-up, draft reminders, reconcile payments, close invoices, and log exceptions for human review.</p>
+    </div>
+    <div>
+      <div class="date mono" id="todayLabel"></div>
+      <div class="header-actions">
+        <button class="runbtn" id="runAllBtn">RUN AR CYCLE →</button>
+        <button class="ghostbtn" id="exportBtn">EXPORT CSV</button>
+        <button class="ghostbtn" id="resetBtn">RESET DEMO</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="proof">
+    <div class="proof-card">
+      <div class="proof-title">Manual work it replaces</div>
+      <p><b>Before:</b> download invoices, calculate aging, decide who to chase, write emails, compare bank lines, update a spreadsheet. <b>After:</b> one AR cycle creates the work queue and closes matches.</p>
+    </div>
+    <div class="proof-card">
+      <div class="proof-title">Healthcare-safe demo data</div>
+      <p>Uses provider/customer invoices only. No patient names, diagnoses, clinical notes, or PHI. In production, payments and reminders would sit behind role-based access and audit logs.</p>
+    </div>
+    <div class="proof-card">
+      <div class="proof-title">Production path</div>
+      <p>Connect billing system + bank feed + secure server-side LLM endpoint. Keep humans in the loop before send, especially for high-risk or disputed accounts.</p>
+    </div>
+  </div>
+
+  <div class="pipeline" id="pipeline"></div>
+
+  <div class="summary">
+    <div class="card">
+      <div class="card-label">Total open AR</div>
+      <div class="card-value mono" id="totalOpen">$0</div>
+      <div class="small" style="margin-top:10px;" id="avgDays">avg 0 days overdue</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Past due balance</div>
+      <div class="card-value mono" id="pastDueBalance">$0</div>
+      <div class="small" style="margin-top:10px;" id="priorityCount">0 priority accounts</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Aging distribution</div>
+      <div class="agingbar" id="agingBar"></div>
+      <div class="aginglegend" id="agingLegend"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Reconciled this run</div>
+      <div class="card-value mono" id="reconciledAmt">$0</div>
+      <div class="small" style="margin-top:10px;" id="reconciledCount">0 invoices matched</div>
+    </div>
+  </div>
+
+  <p class="section-title">Invoice work queue <span class="small">Priority is based on aging + amount due</span></p>
+  <div class="tablecard">
+    <table>
+      <thead>
+        <tr>
+          <th>Customer</th><th>Invoice</th><th>Amount</th><th>Due date</th><th>Days overdue</th><th>Aging</th><th>Priority</th><th>Recommended next step</th><th>Status</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="invoiceRows"></tbody>
+    </table>
+  </div>
+
+  <div class="lower">
+    <div class="panel">
+      <p class="section-title">Reminder drafts <span class="small" id="draftCount"></span></p>
+      <div id="draftsPanel"><p class="empty">No drafts yet. Click “Draft reminder” on an overdue invoice, or run the full AR cycle above.</p></div>
+    </div>
+
+    <div class="panel">
+      <p class="section-title">Payment reconciliation</p>
+      <p class="small" style="margin-top:0;margin-bottom:6px;">Paste incoming payment lines as <span class="mono">Invoice or Customer, Amount</span>. This simulates a bank feed or remittance file.</p>
+      <textarea class="paste" id="pasteArea" placeholder="INV-1042, 4200
+Lakeview Health Partners, 1180.50
+Bayside Cardiology, 9800"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap;">
+        <button class="actionbtn" id="matchBtn">Run matching</button>
+        <button class="actionbtn" id="loadSampleBtn">Load sample payments</button>
+      </div>
+      <p class="small" style="margin-bottom:6px;">Match log</p>
+      <div class="log" id="matchLog"><span class="empty">Nothing run yet.</span></div>
+      <p class="note">The matching rules are deliberately visible: exact invoice number first, then normalized customer + amount. Ambiguous or unmatched lines become exceptions instead of being auto-closed.</p>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:18px;">
+    <p class="section-title">Audit trail <span class="small">Every automation action creates a trace</span></p>
+    <div class="audit" id="auditTrail"></div>
+  </div>
+
+  <p class="footer-note">Prototype note: this version does not expose any API key in the browser. The reminder generator is deterministic for demo reliability. In a production build, the same prompt logic would call an LLM from a secure backend service with approval controls, HIPAA-aware logging, and billing-system integrations.</p>
+
+</div>
+
+<script>
+const ORIGINAL_SEED = [
+  ['Riverside Pediatrics','INV-1042',4200.00,-8],
+  ['Lakeview Health Partners','INV-1043',1180.50,3],
+  ['Northgate Family Medicine','INV-1039',3120.00,22],
+  ['Cedar Grove Internal Med','INV-1031',890.00,41],
+  ['Summit Orthopedics','INV-1028',6740.00,52],
+  ['Harbor View Clinic','INV-1019',2310.75,68],
+  ['Willow Creek Pediatrics','INV-1011',1540.00,77],
+  ['Bayside Cardiology','INV-1002',9800.00,101],
+  ['Elm Street Urgent Care','INV-1044',760.00,-15],
+  ['Parkview Women\'s Health','INV-1036',2980.00,15],
+  ['Maple Family Practice','INV-1030',1425.00,35],
+  ['Stonebridge Behavioral Health','INV-1024',4310.00,58],
+  ['Golden Hills Dermatology','INV-1015',3050.00,84],
+  ['Union Square Physical Therapy','INV-1006',1120.00,96],
+  ['Fairview ENT Associates','INV-1047',2650.00,-3],
+];
+
+const state = {
+  invoices: [],
+  matched: 0,
+  reconciledTotal: 0,
+  audit: []
+};
+const today = new Date();
+document.getElementById('todayLabel').textContent = today.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+function daysAgo(n){ const d = new Date(today); d.setDate(d.getDate()-n); return d; }
+function daysOverdue(due){ return Math.floor((today - due)/86400000); }
+function money(n){ return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function normalized(s){ return String(s).toLowerCase().replace(/[^a-z0-9]/g,''); }
+function addAudit(text, type='info'){
+  const ts = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  state.audit.unshift({ts,text,type});
+  renderAudit();
+}
+
+function initialize(){
+  state.invoices = ORIGINAL_SEED.map(([customer,invNum,amount,dueOffset],i)=>({
+    id:'row'+i,
+    customer,
+    invNum,
+    amount,
+    dueDate: daysAgo(dueOffset),
+    status:'open',
+    reminderStatus:'none',
+    draftText:'',
+    disputed:false
+  }));
+  state.matched = 0;
+  state.reconciledTotal = 0;
+  state.audit = [];
+  addAudit('Loaded 15 open invoices from the billing export.');
+  render();
+  renderDrafts();
+  document.getElementById('matchLog').innerHTML = '<span class="empty">Nothing run yet.</span>';
+}
+
+function bucketOf(days){
+  if(days<=0) return {key:'current',label:'Current',cls:'current',color:'var(--teal)'};
+  if(days<=30) return {key:'1-30',label:'1–30d',cls:'b1',color:'#C79A4F'};
+  if(days<=60) return {key:'31-60',label:'31–60d',cls:'b2',color:'var(--amber)'};
+  if(days<=90) return {key:'61-90',label:'61–90d',cls:'b3',color:'#B5622A'};
+  return {key:'90+',label:'90+d',cls:'b4',color:'var(--red)'};
+}
+
+function priorityOf(inv){
+  const d = daysOverdue(inv.dueDate);
+  const score = (d > 0 ? d : 0) + (inv.amount >= 5000 ? 30 : inv.amount >= 2500 ? 15 : 0);
+  if(score >= 90) return {label:'High',cls:'high',score};
+  if(score >= 45) return {label:'Medium',cls:'med',score};
+  return {label:'Low',cls:'low',score};
+}
+
+function nextStep(inv){
+  if(inv.status === 'paid') return 'No action — closed';
+  const d = daysOverdue(inv.dueDate);
+  if(d <= 0) return 'No action until due date';
+  if(d <= 30) return 'Send friendly reminder';
+  if(d <= 60) return 'Ask for payment date';
+  if(d <= 90) return 'Escalate to urgent follow-up';
+  return 'Flag for account review';
+}
+
+function toneFor(days){
+  if(days<=30) return {label:'friendly nudge', window:'this week'};
+  if(days<=60) return {label:'firm reminder', window:'the next 3 business days'};
+  if(days<=90) return {label:'urgent notice', window:'48 hours'};
+  return {label:'final account review notice', window:'24 hours'};
+}
+
+function generateDraft(inv){
+  const d = daysOverdue(inv.dueDate);
+  const tone = toneFor(d);
+  const due = inv.dueDate.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const base = {
+    friendly: `Hi ${inv.customer} team,\n\nI hope you are doing well. I wanted to send a quick reminder that invoice ${inv.invNum} for ${money(inv.amount)} was due on ${due}. If payment has already been sent, please disregard this note. Otherwise, could you let us know when we should expect payment?\n\nThank you,\nAmigo Billing Team`,
+    firm: `Hi ${inv.customer} team,\n\nFollowing up on invoice ${inv.invNum} for ${money(inv.amount)}, which is now ${d} days past due. Could you please confirm the expected payment date within ${tone.window}? If there is an issue with the invoice, send it over and we will help resolve it.\n\nThank you,\nAmigo Billing Team`,
+    urgent: `Hi ${inv.customer} team,\n\nThis is an urgent follow-up on invoice ${inv.invNum} for ${money(inv.amount)}, currently ${d} days past due. Please confirm payment status within ${tone.window}, or let us know if anything is blocking payment so we can resolve it quickly.\n\nThank you,\nAmigo Billing Team`,
+    final: `Hi ${inv.customer} team,\n\nInvoice ${inv.invNum} for ${money(inv.amount)} is now ${d} days past due. Please confirm payment status within ${tone.window}. If we do not hear back, we may need to move this account into internal review.\n\nThank you,\nAmigo Billing Team`
+  };
+  if(d<=30) return base.friendly;
+  if(d<=60) return base.firm;
+  if(d<=90) return base.urgent;
+  return base.final;
+}
+
+function render(){
+  const sorted = [...state.invoices].sort((a,b)=>{
+    const pa = priorityOf(a).score, pb = priorityOf(b).score;
+    if(a.status !== b.status) return a.status === 'open' ? -1 : 1;
+    return pb - pa;
+  });
+
+  document.getElementById('invoiceRows').innerHTML = sorted.map(inv=>{
+    const d = daysOverdue(inv.dueDate);
+    const b = bucketOf(d);
+    const p = priorityOf(inv);
+    const paidCls = inv.status==='paid' ? 'paid' : '';
+    let actionCell;
+    if(inv.status==='paid'){
+      actionCell = `<span class="small">closed</span>`;
+    } else if(d<=0){
+      actionCell = `<span class="small">not due</span>`;
+    } else if(inv.reminderStatus==='sent'){
+      actionCell = `<span class="sentbadge mono">✓ sent</span>`;
+    } else {
+      actionCell = `<button class="actionbtn" onclick="draftOne('${inv.id}')">${inv.reminderStatus==='drafted'?'redraft':'draft reminder'}</button>`;
+    }
+    return `<tr class="${paidCls}">
+      <td>${inv.customer}</td>
+      <td class="mono">${inv.invNum}</td>
+      <td class="mono">${money(inv.amount)}</td>
+      <td class="mono">${inv.dueDate.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</td>
+      <td class="mono">${d>0?d:'—'}</td>
+      <td><span class="tag ${b.cls}">${b.label}</span></td>
+      <td><span class="tag ${p.cls}">${p.label}</span></td>
+      <td class="small">${nextStep(inv)}</td>
+      <td class="small">${inv.status==='paid'?'closed':(d<=0?'not due':'open')}</td>
+      <td><div class="actions">${actionCell}</div></td>
+    </tr>`;
+  }).join('');
+
+  const open = state.invoices.filter(i=>i.status==='open');
+  const overdueOpen = open.filter(i=>daysOverdue(i.dueDate)>0);
+  const totalOpen = open.reduce((s,i)=>s+i.amount,0);
+  const pastDueBalance = overdueOpen.reduce((s,i)=>s+i.amount,0);
+  const avg = overdueOpen.length ? Math.round(overdueOpen.reduce((s,i)=>s+daysOverdue(i.dueDate),0)/overdueOpen.length) : 0;
+  const priorityCount = overdueOpen.filter(i=>priorityOf(i).label==='High').length;
+  document.getElementById('totalOpen').textContent = money(totalOpen);
+  document.getElementById('avgDays').textContent = `avg ${avg} days overdue (${overdueOpen.length} past due)`;
+  document.getElementById('pastDueBalance').textContent = money(pastDueBalance);
+  document.getElementById('priorityCount').textContent = `${priorityCount} high-priority accounts`;
+
+  const buckets = {current:0,'1-30':0,'31-60':0,'61-90':0,'90+':0};
+  open.forEach(i=>{ buckets[bucketOf(daysOverdue(i.dueDate)).key]+=i.amount; });
+  const bucketMeta = [
+    ['current','Current','var(--teal)'],
+    ['1-30','1–30d','#C79A4F'],
+    ['31-60','31–60d','var(--amber)'],
+    ['61-90','61–90d','#B5622A'],
+    ['90+','90+d','var(--red)'],
+  ];
+  document.getElementById('agingBar').innerHTML = bucketMeta.map(([k,,color])=>{
+    const pct = totalOpen? (buckets[k]/totalOpen*100):0;
+    return pct>0 ? `<div style="width:${pct}%;background:${color};"></div>` : '';
+  }).join('');
+  document.getElementById('agingLegend').innerHTML = bucketMeta.map(([k,label,color])=>
+    `<span><span class="dot" style="background:${color};"></span>${label}: ${money(buckets[k])}</span>`
+  ).join('');
+
+  document.getElementById('reconciledAmt').textContent = money(state.reconciledTotal);
+  document.getElementById('reconciledCount').textContent = `${state.matched} invoices matched`;
+
+  const total = state.invoices.length;
+  const drafted = state.invoices.filter(i=>i.reminderStatus!=='none').length;
+  const sent = state.invoices.filter(i=>i.reminderStatus==='sent').length;
+  const closed = state.invoices.filter(i=>i.status==='paid').length;
+  const steps = [
+    ['Invoices loaded', total],
+    ['Aged & scored', total],
+    ['Drafts created', drafted],
+    ['Approved / sent', sent],
+    ['Matched & closed', closed],
+  ];
+  document.getElementById('pipeline').innerHTML = steps.map(([label,count],idx)=>{
+    const node = `<div class="step ${count>0?'active':''}"><div class="step-count mono">${count}</div><div class="step-label">${label}</div></div>`;
+    if(idx===0) return node;
+    return `<div class="connector"><div class="fill" style="width:${count>0?100:0}%;"></div></div>${node}`;
+  }).join('');
+
+  document.getElementById('draftCount').textContent = drafted ? `(${drafted})` : '';
+}
+
+function renderDrafts(){
+  const draftedInvoices = state.invoices.filter(i=>i.reminderStatus!=='none');
+  if(!draftedInvoices.length){
+    document.getElementById('draftsPanel').innerHTML = '<p class="empty">No drafts yet. Click “Draft reminder” on an overdue invoice, or run the full AR cycle above.</p>';
+    return;
+  }
+  document.getElementById('draftsPanel').innerHTML = draftedInvoices.map(inv=>{
+    const d = daysOverdue(inv.dueDate);
+    const tone = toneFor(d);
+    return `<div class="draft">
+      <div class="draft-head">
+        <b>${inv.customer} — ${inv.invNum}</b>
+        <span class="small mono">${tone.label} · ${d}d overdue</span>
+      </div>
+      <textarea id="ta-${inv.id}">${inv.draftText}</textarea>
+      <div class="draft-foot">
+        <span class="small">${inv.reminderStatus==='sent' ? '<span class="sentbadge mono">✓ marked sent</span>' : 'human review before sending'}</span>
+        ${inv.reminderStatus==='sent' ? '' : `<button class="actionbtn" onclick="markSent('${inv.id}')">Mark as sent</button>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function draftOne(id){
+  const inv = state.invoices.find(i=>i.id===id);
+  if(!inv || inv.status==='paid' || daysOverdue(inv.dueDate)<=0) return;
+  inv.draftText = generateDraft(inv);
+  inv.reminderStatus = 'drafted';
+  addAudit(`Drafted ${toneFor(daysOverdue(inv.dueDate)).label} for ${inv.invNum} (${inv.customer}).`);
+  render();
+  renderDrafts();
+}
+
+function markSent(id){
+  const inv = state.invoices.find(i=>i.id===id);
+  if(!inv) return;
+  const ta = document.getElementById('ta-'+id);
+  if(ta) inv.draftText = ta.value;
+  inv.reminderStatus = 'sent';
+  addAudit(`Marked reminder sent for ${inv.invNum} after human review.`);
+  render();
+  renderDrafts();
+}
+
+function runAutomation(){
+  const targets = state.invoices.filter(i=>i.status==='open' && daysOverdue(i.dueDate)>0 && i.reminderStatus==='none');
+  targets.forEach(inv=>{
+    inv.draftText = generateDraft(inv);
+    inv.reminderStatus = 'drafted';
+  });
+  addAudit(`AR cycle drafted ${targets.length} reminders and refreshed the priority queue.`);
+  render();
+  renderDrafts();
+}
+
+function parsePaymentLine(line){
+  const parts = line.split(',').map(p=>p.trim()).filter(Boolean);
+  if(parts.length < 2) return null;
+  const amountText = parts[parts.length-1].replace(/[^0-9.]/g,'');
+  const amount = parseFloat(amountText);
+  if(Number.isNaN(amount)) return null;
+  const reference = parts.slice(0, parts.length-1).join(' ').trim();
+  return {reference, amount, raw:line};
+}
+
+function findPaymentMatch(payment){
+  const ref = normalized(payment.reference);
+  const open = state.invoices.filter(i=>i.status==='open');
+  const exactInvoice = open.find(i=>normalized(i.invNum)===ref && Math.abs(i.amount-payment.amount)<1);
+  if(exactInvoice) return {invoice:exactInvoice, confidence:'high', reason:'invoice number + amount'};
+
+  const looseInvoice = open.find(i=>ref.includes(normalized(i.invNum)) && Math.abs(i.amount-payment.amount)<1);
+  if(looseInvoice) return {invoice:looseInvoice, confidence:'high', reason:'invoice reference + amount'};
+
+  const candidates = open.filter(i=>Math.abs(i.amount-payment.amount)<1);
+  const customerMatches = candidates.filter(i=>{
+    const cust = normalized(i.customer);
+    return cust.includes(ref) || ref.includes(cust) || i.customer.toLowerCase().split(' ').some(word=>word.length>4 && payment.reference.toLowerCase().includes(word));
+  });
+  if(customerMatches.length === 1) return {invoice:customerMatches[0], confidence:'medium', reason:'customer + amount'};
+  if(customerMatches.length > 1) return {invoice:null, confidence:'low', reason:'ambiguous customer match'};
+  return {invoice:null, confidence:'none', reason:'no match'};
+}
+
+function runMatching(){
+  const raw = document.getElementById('pasteArea').value.trim();
+  const log = [];
+  if(!raw){
+    document.getElementById('matchLog').innerHTML = '<span class="empty">Paste some payment lines first.</span>';
+    return;
+  }
+  const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
+  lines.forEach(line=>{
+    const payment = parsePaymentLine(line);
+    if(!payment){ log.push(`<span class="miss">✕ could not parse: ${line}</span>`); return; }
+    const result = findPaymentMatch(payment);
+    if(result.invoice){
+      result.invoice.status = 'paid';
+      state.matched++;
+      state.reconciledTotal += result.invoice.amount;
+      log.push(`<span class="ok">✓ ${line} → matched ${result.invoice.invNum} (${result.reason}, ${result.confidence} confidence)</span>`);
+      addAudit(`Closed ${result.invoice.invNum} for ${money(result.invoice.amount)} using ${result.reason}.`);
+    } else if(result.reason === 'ambiguous customer match'){
+      log.push(`<span class="warn">! ${line} → ambiguous. Sent to exception queue.</span>`);
+      addAudit(`Exception created for payment line: ${line}.`,'warn');
+    } else {
+      log.push(`<span class="miss">✕ no open invoice match for: ${line}</span>`);
+      addAudit(`No match found for payment line: ${line}.`,'miss');
+    }
+  });
+  document.getElementById('matchLog').innerHTML = log.join('<br>');
+  render();
+}
+
+function loadSamplePayments(){
+  document.getElementById('pasteArea').value = 'INV-1042, 4200\nLakeview Health Partners, 1180.50\nBayside Cardiology, 9800\nUnknown Clinic, 500';
+  addAudit('Loaded sample bank/remittance lines for reconciliation demo.');
+}
+
+function exportCSV(){
+  const header = ['Customer','Invoice','Amount','Due Date','Days Overdue','Aging Bucket','Priority','Status','Reminder Status','Next Step'];
+  const rows = state.invoices.map(inv=>{
+    const d = daysOverdue(inv.dueDate);
+    return [
+      inv.customer,
+      inv.invNum,
+      inv.amount.toFixed(2),
+      inv.dueDate.toISOString().slice(0,10),
+      d > 0 ? d : 0,
+      bucketOf(d).label,
+      priorityOf(inv).label,
+      inv.status,
+      inv.reminderStatus,
+      nextStep(inv)
+    ];
+  });
+  const csv = [header, ...rows].map(row=>row.map(cell=>`"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'ar_autopilot_work_queue.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  addAudit('Exported current AR work queue to CSV.');
+}
+
+function renderAudit(){
+  const el = document.getElementById('auditTrail');
+  if(!state.audit.length){ el.innerHTML = '<span class="empty">No actions yet.</span>'; return; }
+  el.innerHTML = state.audit.map(item=>`<div><span class="mono small">${item.ts}</span> — ${item.text}</div>`).join('');
+}
+
+document.getElementById('runAllBtn').addEventListener('click', runAutomation);
+document.getElementById('matchBtn').addEventListener('click', runMatching);
+document.getElementById('loadSampleBtn').addEventListener('click', loadSamplePayments);
+document.getElementById('exportBtn').addEventListener('click', exportCSV);
+document.getElementById('resetBtn').addEventListener('click', initialize);
+
+initialize();
+</script>
+</body>
+</html>
